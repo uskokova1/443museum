@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <title>443 Wall/Painting Demo</title>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 50);
+
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.6, 5);
+
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
+        const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x3a7bd5 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Wall dimensions
+        const wallWidth = 20;
+        const wallHeight = 8;
+        const wallDepth = 0.3;
+
+// Create wall texture using Archive.org wallpaper
+function createWallTexture() {
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Load the wallpaper texture from local file 
+    const wallTexture = textureLoader.load('./wallpaper.jpg',
+        // Success callback
+        function(texture) {
+            console.log('✅ Wallpaper texture loaded successfully');
+            // Configure texture for tiling/repeating
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(2, 2); // Repeat 2x2 times for better coverage
+        },
+        // Progress callback (optional)
+        undefined,
+        // Error callback
+        function(error) {
+            console.error('❌ Failed to load wallpaper texture:', error);
+        }
+    );
+    
+    return wallTexture;
+}
+
+        // Create the wall with doorway
+        function createWallWithDoorway() {
+            const wallGroup = new THREE.Group();
+            
+            // Wall material with texture
+            const wallMaterial = new THREE.MeshLambertMaterial({ 
+                map: createWallTexture()
+            });
+            
+            // Doorway position (centered)
+            const doorwayWidth = 4;
+            const doorwayHeight = 5;
+            
+            // Create wall segments around the doorway
+            
+            // Left wall segment
+            const leftWallGeometry = new THREE.BoxGeometry(
+                (wallWidth - doorwayWidth) / 2, 
+                wallHeight, 
+                wallDepth
+            );
+            const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+            leftWall.position.set(-(wallWidth + doorwayWidth) / 4, wallHeight / 2, 0);
+            leftWall.userData = { isWall: true };
+            wallGroup.add(leftWall);
+            
+            // Right wall segment
+            const rightWallGeometry = new THREE.BoxGeometry(
+                (wallWidth - doorwayWidth) / 2, 
+                wallHeight, 
+                wallDepth
+            );
+            const rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
+            rightWall.position.set((wallWidth + doorwayWidth) / 4, wallHeight / 2, 0);
+            rightWall.userData = { isWall: true };
+            wallGroup.add(rightWall);
+            
+            // Wall segment above doorway
+            const topWallGeometry = new THREE.BoxGeometry(
+                wallWidth, 
+                wallHeight - doorwayHeight, 
+                wallDepth
+            );
+            const topWall = new THREE.Mesh(topWallGeometry, wallMaterial);
+            topWall.position.set(0, (wallHeight + doorwayHeight) / 2, 0);
+            topWall.userData = { isWall: true };
+            wallGroup.add(topWall);
+            
+            return wallGroup;
+        }
+
+        // Load and create paintings using archive.org and local file
+        function createPaintings() {
+            const textureLoader = new THREE.TextureLoader();
+            const paintings = [];
+            
+            const paintingConfigs = [
+                {
+                    url: 'soul.jpg',
+                    position: new THREE.Vector3(-6, 4, wallDepth/2 + 0.01), // In front of the wall
+                    size: { width: 4, height: 5 },
+                    title: "The Soul in Bondage",
+                    artist: "Unknown Artist"
+                },
+                {
+                    url: 'https://ia601608.us.archive.org/32/items/brooklynmuseum-o36361-head-of-a-girl/brooklynmuseum-o36361i000-33.269_transp6105.jpg',
+                    position: new THREE.Vector3(6, 4, wallDepth/2 + 0.01), // In front of the wall
+                    size: { width: 4, height: 5 },
+                    title: "Head of a Girl",
+                    artist: "Unknown Artist"
+                }
+            ];
+            
+            paintingConfigs.forEach((config, index) => {
+                textureLoader.load(config.url, (texture) => {
+                    // Create painting geometry
+                    const paintingGeometry = new THREE.PlaneGeometry(config.size.width, config.size.height);
+                    const paintingMaterial = new THREE.MeshLambertMaterial({ 
+                        map: texture 
+                    });
+                    const painting = new THREE.Mesh(paintingGeometry, paintingMaterial);
+                    
+                    // Position the painting in front of the wall
+                    painting.position.copy(config.position);
+                    
+                    // Add frame
+                    const frameGeometry = new THREE.BoxGeometry(
+                        config.size.width + 0.3, 
+                        config.size.height + 0.3, 
+                        0.1
+                    );
+                    const frameMaterial = new THREE.MeshLambertMaterial({ 
+                        color: 0x8B4513 // Dark wood color
+                    });
+                    const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                    frame.position.copy(config.position);
+                    frame.position.z -= 0.06; // Place frame slightly behind painting
+                    
+                    scene.add(frame);
+                    scene.add(painting);
+                    paintings.push(painting);
+                    
+                    console.log(`Painting ${index + 1} loaded at position:`, config.position);
+                    
+                }, undefined, (error) => {
+                    console.error('Error loading painting:', error);
+                });
+            });
+            
+            return paintings;
+        }
+        
+        // Create the scene elements
+        const wall = createWallWithDoorway();
+        scene.add(wall);
+        
+        const paintings = createPaintings();
+
+        // Player movement variables
+        const moveSpeed = 0.1;
+        const lookSpeed = 0.002;
+        const keys = {};
+        let mouseX = 0;
+        let mouseY = 0;
+        let pitch = 0;
+        let yaw = 0;
+        let isMouseDown = false;
+
+        // Collision detection
+        function checkCollisions(newPosition) {
+            const wallSegments = wall.children;
+            const playerRadius = 0.5;
+            
+            for (let segment of wallSegments) {
+                if (segment.userData.isWall) {
+                    const wallBox = new THREE.Box3().setFromObject(segment);
+                    wallBox.expandByScalar(playerRadius);
+                    
+                    if (wallBox.containsPoint(newPosition)) {
+                        return true; // Collision detected
+                    }
+                }
+            }
+            return false; // No collision
+        }
+
+        // Event listeners
+        document.addEventListener('keydown', (event) => {
+            keys[event.code] = true;
+        });
+
+        document.addEventListener('keyup', (event) => {
+            keys[event.code] = false;
+        });
+
+        document.addEventListener('mousedown', () => {
+            isMouseDown = true;
+        });
+
+        document.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (isMouseDown) {
+                mouseX = event.movementX;
+                mouseY = event.movementY;
+            }
+        });
+
+        // Prevent context menu on right-click
+        document.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Store original position for collision detection
+            const originalPosition = camera.position.clone();
+
+            // Camera movement
+            if (keys['KeyW']) {
+                camera.translateZ(-moveSpeed);
+            }
+            if (keys['KeyS']) {
+                camera.translateZ(moveSpeed);
+            }
+            if (keys['KeyA']) {
+                camera.translateX(-moveSpeed);
+            }
+            if (keys['KeyD']) {
+                camera.translateX(moveSpeed);
+            }
+
+            // Check collisions and revert if needed
+            if (checkCollisions(camera.position)) {
+                camera.position.copy(originalPosition);
+            }
+
+            // Camera rotation with mouse
+            if (isMouseDown) {
+                yaw -= mouseX * lookSpeed;
+                pitch -= mouseY * lookSpeed;
+                
+                // Limit pitch to avoid flipping
+                pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+                
+                // Reset mouse movement
+                mouseX = 0;
+                mouseY = 0;
+                
+                // Apply rotation to camera
+                camera.rotation.order = 'YXZ';
+                camera.rotation.y = yaw;
+                camera.rotation.x = pitch;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
